@@ -12,7 +12,7 @@ asr_mode_addr  = 0x02   #识别模式设置地址，值为0-2，0:循环识别�
 asr_rgb_addr = 0x03   			#RGB灯设置地址,需要发两位，第一个直接为灯号1：蓝 2:红 3：绿 ,
                                 #第二个字节为亮度0-255，数值越大亮度越高
 
-asr_rec_gain_addr  = 0x04    #识别灵敏度设置地址，灵敏度可设置为0x00-0x55，值越高越容易检测但是越容易误判，
+asr_rec_gain_addr  = 0x04    #识别灵敏度设置地址，灵敏度可设置为0x00-0x7f，值越高越容易检测但是越容易误判，
                              #建议设置值为0x40-0x55,默认值为0x40
                                           
 asr_clear_addr = 0x05   #清除掉电缓存操作地址，录入信息前均要清除下缓存区信息
@@ -67,23 +67,15 @@ def RGBSet(R,G,B):
 def I2CReadByte(reg):
 	global i2c_addr
 	bus.write_byte (i2c_addr, reg)
-	time.sleep(0.02)
+	time.sleep(0.05)
 	Read_result = bus.read_byte (i2c_addr)
 	return Read_result
 
-def I2CWriteByte(reg, value):
-	print("write %02x %02x" % (reg, value))
-	bus.write_byte_data(i2c_addr, reg, value)
-	time.sleep(0.5)
-
 def Busy_Wait():
 	busy = 255
-	times = 0
-	while busy != 0 and times < 200:
+	while busy != 0:
 		busy = I2CReadByte(asr_busy)
-		if times > 0:
-			print("%02x (%d)" % (busy, times))	
-		times = times + 1
+		print(asr_busy)	
 
 '''
 模式和词组具有掉电保存功能，第一次录入后续如果没有修改可以将1置位0不折行录入词条和模式
@@ -92,15 +84,12 @@ cleck = 0
 
 if 1:
 
-	I2CWriteByte( asr_clear_addr, 0x40)#清除掉电缓存区
-	time.sleep(0.05)
+	bus.write_byte_data(i2c_addr, asr_clear_addr, 0x40)#清除掉电缓存区
 	Busy_Wait()				#等待模块空闲
 	print("缓存区清除完毕")
-	I2CWriteByte( asr_mode_addr, 1)#设置为循环模式
-	Busy_Wait()				#等待模块空闲	
+	bus.write_byte_data(i2c_addr, asr_mode_addr, 0x00)#设置为循环模式
+	Busy_Wait()				#等待模块空闲
 	print("模式设置完毕完毕")
-	AsrAddWords(0,"xiao ya")
-	Busy_Wait()				#等待模块空闲	
 	AsrAddWords(1,"hong deng")
 	Busy_Wait()				#等待模块空闲
 	AsrAddWords(2,"lv deng")
@@ -109,13 +98,13 @@ if 1:
 	Busy_Wait()				#等待模块空闲
 	AsrAddWords(4,"guan deng")
 	Busy_Wait()				#等待模块空闲
-	while cleck != 5:
+	while cleck != 4:
 		cleck = I2CReadByte(asr_num_cleck)
 		print(cleck)	
 
-I2CWriteByte( asr_rec_gain_addr, 0x40)#设置灵敏度，建议值为0x40-0x55
-I2CWriteByte( asr_voice_flag, 1)#设置开关提示音
-I2CWriteByte( asr_buzzer, 1)#蜂鸣器
+bus.write_byte_data(i2c_addr, asr_rec_gain_addr, 0x40)#设置灵敏度，建议值为0x40-0x55
+bus.write_byte_data(i2c_addr, asr_voice_flag, 1)#设置开关提示音
+bus.write_byte_data(i2c_addr, asr_buzzer, 1)#蜂鸣器
 RGBSet(255,255,255)
 time.sleep(1)
 RGBSet(0,0,0)
@@ -125,3 +114,4 @@ bus.write_byte_data(i2c_addr, asr_buzzer, 0)#蜂鸣器
 while True:
 	result = I2CReadByte(asr_result)
 	print(result)
+	time.sleep(0.5)
